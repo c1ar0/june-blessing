@@ -60,9 +60,11 @@ function rand(min, max) { return min + Math.random() * (max - min); }
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
 function resize() {
-  DPR = Math.min(window.devicePixelRatio || 1, 2);
   W = window.innerWidth;
   H = window.innerHeight;
+  // Mobile browsers with DPR=2/3 make the offscreen text bitmap huge and can freeze while loading.
+  // Keep mobile computation at CSS-pixel resolution; visual quality is preserved by dense particles.
+  DPR = W < 720 ? 1 : Math.min(window.devicePixelRatio || 1, 1.5);
   canvas.width = Math.floor(W * DPR);
   canvas.height = Math.floor(H * DPR);
   canvas.style.width = `${W}px`;
@@ -190,8 +192,8 @@ function makeParticle(target, old, layer) {
 
 function buildText(text, scatter = true) {
   const { data, width, height } = getTextMaps(text);
-  const edgeGap = W < 560 ? 2.4 : 3.0;
-  const fillGap = W < 560 ? 5.4 : 6.4;
+  const edgeGap = W < 560 ? 3.2 : 3.4;
+  const fillGap = W < 560 ? 6.8 : 7.2;
   const span = Math.max(1, Math.round(2 * DPR));
   const edges = [];
   const fills = [];
@@ -208,8 +210,8 @@ function buildText(text, scatter = true) {
   }
 
   const old = particles;
-  const maxEdge = W < 560 ? 5200 : 7600;
-  const maxFill = W < 560 ? 1700 : 2500;
+  const maxEdge = W < 560 ? 3600 : 6200;
+  const maxFill = W < 560 ? 1000 : 1900;
   const edgeStep = Math.max(1, Math.ceil(edges.length / maxEdge));
   const fillStep = Math.max(1, Math.ceil(fills.length / maxFill));
   const next = [];
@@ -363,6 +365,8 @@ function updateParticles() {
 }
 
 function drawLinks() {
+  // Link drawing is nice on desktop, but on mobile it is the biggest per-frame cost.
+  if (W < 720) return;
   const edgeParticles = particles.filter(p => p.kind === 'edge');
   const step = Math.max(3, Math.floor(edgeParticles.length / 500));
   for (let i = 0; i < edgeParticles.length; i += step) {
