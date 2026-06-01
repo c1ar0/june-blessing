@@ -46,6 +46,7 @@ let W = 0, H = 0, DPR = 1;
 let particles = [];
 let dust = [];
 let ripples = [];
+let currentTextRender = { lines: ['顾老师', '六月快乐'], size: 64, lineHeight: 82, centerY: 0 };
 let phraseIndex = 0;
 let morphing = false;
 let pointer = { x: -9999, y: -9999, px: -9999, py: -9999, down: false, active: false, lastMove: 0, speed: 0 };
@@ -126,8 +127,9 @@ function getTextTargets(text) {
   const { size, lines, lineHeight } = textLayout(text, octx);
   octx.font = `800 ${size}px "PingFang SC", "Microsoft YaHei", system-ui, sans-serif`;
   octx.fillStyle = '#111';
-  const centerY = H * (W < 560 ? 0.54 : 0.56);
+  const centerY = H * (W < 560 ? 0.56 : 0.57);
   const totalH = (lines.length - 1) * lineHeight;
+  currentTextRender = { lines, size, lineHeight, centerY };
   lines.forEach((line, i) => octx.fillText(line, W / 2, centerY - totalH / 2 + i * lineHeight));
 
   const data = octx.getImageData(0, 0, off.width, off.height).data;
@@ -145,7 +147,7 @@ function buildText(text, scatter = true) {
   const targets = getTextTargets(text);
   const old = particles;
   const next = [];
-  const maxParticles = W < 560 ? 2300 : 3600;
+  const maxParticles = W < 560 ? 3600 : 5200;
   const step = Math.max(1, Math.ceil(targets.length / maxParticles));
   for (let k = 0, i = 0; i < targets.length; i += step, k++) {
     const t = targets[i];
@@ -161,7 +163,7 @@ function buildText(text, scatter = true) {
       oy: t.y,
       vx: scatter ? Math.cos(angle) * rand(4, 12) : rand(-0.5, 0.5),
       vy: scatter ? Math.sin(angle) * rand(4, 12) : rand(-0.5, 0.5),
-      r: rand(W < 560 ? 1.05 : 1.15, W < 560 ? 2.55 : 2.9),
+      r: rand(W < 560 ? 0.95 : 1.05, W < 560 ? 1.85 : 2.15),
       color: palette[Math.floor(Math.random() * palette.length)],
       a: rand(0.62, 0.96),
       phase: Math.random() * Math.PI * 2
@@ -231,6 +233,33 @@ function drawRipples() {
   }
 }
 
+function drawReadableText() {
+  if (!currentTextRender || !currentTextRender.lines) return;
+  const { lines, size, lineHeight, centerY } = currentTextRender;
+  const totalH = (lines.length - 1) * lineHeight;
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = `800 ${size}px "PingFang SC", "Microsoft YaHei", system-ui, sans-serif`;
+  ctx.lineJoin = 'round';
+  ctx.shadowBlur = 0;
+
+  lines.forEach((line, i) => {
+    const y = centerY - totalH / 2 + i * lineHeight;
+    // A very light skeleton under the particles keeps Chinese characters readable
+    // without losing the particle-text effect.
+    ctx.lineWidth = Math.max(2, size * 0.045);
+    ctx.strokeStyle = 'rgba(255,255,255,0.72)';
+    ctx.strokeText(line, W / 2, y);
+    ctx.lineWidth = Math.max(1, size * 0.018);
+    ctx.strokeStyle = 'rgba(78,66,100,0.34)';
+    ctx.strokeText(line, W / 2, y);
+    ctx.fillStyle = 'rgba(78,66,100,0.16)';
+    ctx.fillText(line, W / 2, y);
+  });
+  ctx.restore();
+}
+
 function updateParticles() {
   const now = performance.now();
   if (pointer.active && now - pointer.lastMove > 780 && !pointer.down) pointer.active = false;
@@ -268,8 +297,8 @@ function updateParticles() {
     ctx.globalAlpha = p.a;
     ctx.fillStyle = p.color;
     ctx.shadowColor = p.color;
-    ctx.shadowBlur = 8 + speedGlow * 18;
-    ctx.arc(p.x, p.y, p.r + speedGlow * 0.9, 0, Math.PI * 2);
+    ctx.shadowBlur = 3 + speedGlow * 8;
+    ctx.arc(p.x, p.y, p.r + speedGlow * 0.35, 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.globalAlpha = 1;
@@ -297,6 +326,7 @@ function animate() {
   ctx.clearRect(0, 0, W, H);
   drawBackground();
   drawRipples();
+  drawReadableText();
   updateParticles();
   drawLinks();
   requestAnimationFrame(animate);
