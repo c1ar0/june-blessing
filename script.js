@@ -100,19 +100,31 @@ function wrapText(ctx2, text, maxWidth) {
 }
 
 function textLayout(text, ctx2) {
-  let size = W < 560 ? 34 : 58;
-  if (text.length <= 8) size = W < 560 ? 54 : 86;
-  else if (text.length <= 18) size = W < 560 ? 42 : 70;
-  else if (text.length > 34) size = W < 560 ? 27 : 45;
-  size = clamp(size, 24, Math.min(96, W / 3.8));
-  ctx2.font = `800 ${size}px "PingFang SC", "Microsoft YaHei", system-ui, sans-serif`;
-  let lines = wrapText(ctx2, text, W * (W < 560 ? 0.9 : 0.82));
-  while (lines.length > 4 && size > 22) {
-    size -= 3;
-    ctx2.font = `800 ${size}px "PingFang SC", "Microsoft YaHei", system-ui, sans-serif`;
-    lines = wrapText(ctx2, text, W * (W < 560 ? 0.92 : 0.84));
+  const maxWidth = W * (W < 560 ? 0.88 : 0.78);
+  const maxHeight = H * (W < 560 ? 0.42 : 0.48);
+  const minSize = W < 560 ? 24 : 34;
+  let size = W < 560 ? 40 : 66;
+
+  if (text.length <= 8) size = W < 560 ? 64 : 104;
+  else if (text.length <= 16) size = W < 560 ? 50 : 82;
+  else if (text.length <= 24) size = W < 560 ? 42 : 70;
+  else if (text.length > 34) size = W < 560 ? 32 : 52;
+
+  size = clamp(size, minSize, Math.min(W < 560 ? 70 : 112, W / 3.35));
+
+  let lines = [];
+  let lineHeight = size * 1.24;
+  while (size >= minSize) {
+    ctx2.font = `900 ${size}px "PingFang SC", "Microsoft YaHei", system-ui, sans-serif`;
+    lines = wrapText(ctx2, text, maxWidth);
+    lineHeight = size * 1.24;
+    const totalHeight = lines.length * lineHeight;
+    const widest = Math.max(...lines.map(line => ctx2.measureText(line).width), 0);
+    if (lines.length <= 4 && totalHeight <= maxHeight && widest <= maxWidth) break;
+    size -= 2;
   }
-  return { size, lines, lineHeight: size * 1.28 };
+
+  return { size, lines, lineHeight };
 }
 
 function getTextTargets(text) {
@@ -125,7 +137,7 @@ function getTextTargets(text) {
   octx.textAlign = 'center';
   octx.textBaseline = 'middle';
   const { size, lines, lineHeight } = textLayout(text, octx);
-  octx.font = `800 ${size}px "PingFang SC", "Microsoft YaHei", system-ui, sans-serif`;
+  octx.font = `900 ${size}px "PingFang SC", "Microsoft YaHei", system-ui, sans-serif`;
   octx.fillStyle = '#111';
   const centerY = H * (W < 560 ? 0.56 : 0.57);
   const totalH = (lines.length - 1) * lineHeight;
@@ -133,7 +145,7 @@ function getTextTargets(text) {
   lines.forEach((line, i) => octx.fillText(line, W / 2, centerY - totalH / 2 + i * lineHeight));
 
   const data = octx.getImageData(0, 0, off.width, off.height).data;
-  const gap = W < 560 ? 5 : 6;
+  const gap = W < 560 ? 4 : 5;
   const targets = [];
   for (let y = 0; y < off.height; y += gap * DPR) {
     for (let x = 0; x < off.width; x += gap * DPR) {
@@ -147,7 +159,7 @@ function buildText(text, scatter = true) {
   const targets = getTextTargets(text);
   const old = particles;
   const next = [];
-  const maxParticles = W < 560 ? 3600 : 5200;
+  const maxParticles = W < 560 ? 4300 : 6200;
   const step = Math.max(1, Math.ceil(targets.length / maxParticles));
   for (let k = 0, i = 0; i < targets.length; i += step, k++) {
     const t = targets[i];
@@ -240,21 +252,21 @@ function drawReadableText() {
   ctx.save();
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = `800 ${size}px "PingFang SC", "Microsoft YaHei", system-ui, sans-serif`;
+  ctx.font = `900 ${size}px "PingFang SC", "Microsoft YaHei", system-ui, sans-serif`;
   ctx.lineJoin = 'round';
   ctx.shadowBlur = 0;
 
   lines.forEach((line, i) => {
     const y = centerY - totalH / 2 + i * lineHeight;
-    // A very light skeleton under the particles keeps Chinese characters readable
+    // A light but crisp skeleton under the particles keeps Chinese strokes readable
     // without losing the particle-text effect.
-    ctx.lineWidth = Math.max(2, size * 0.045);
-    ctx.strokeStyle = 'rgba(255,255,255,0.72)';
+    ctx.lineWidth = Math.max(2.4, size * 0.052);
+    ctx.strokeStyle = 'rgba(255,255,255,0.82)';
     ctx.strokeText(line, W / 2, y);
-    ctx.lineWidth = Math.max(1, size * 0.018);
-    ctx.strokeStyle = 'rgba(78,66,100,0.34)';
+    ctx.lineWidth = Math.max(1.2, size * 0.022);
+    ctx.strokeStyle = 'rgba(70,58,92,0.48)';
     ctx.strokeText(line, W / 2, y);
-    ctx.fillStyle = 'rgba(78,66,100,0.16)';
+    ctx.fillStyle = 'rgba(70,58,92,0.20)';
     ctx.fillText(line, W / 2, y);
   });
   ctx.restore();
