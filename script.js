@@ -6,28 +6,52 @@ const caption = document.querySelector('#caption');
 
 const phrases = [
   '顾老师\n六月快乐',
-  '愿六月的风\n温柔明亮',
-  '愿每天都有\n新的欢喜',
-  '心中有光\n眼里有笑',
-  '一路从容\n万事顺遂'
-];
-const captions = [
-  '点击文字，粒子散开后会组成下一句祝福',
-  '滑动时粒子会让开，放开后慢慢回到原位',
-  '每一次点击，都是一束新的六月祝福',
-  '薰衣草紫粒子会自动重组为下一句话',
-  '把这份温柔的六月祝福送给顾老师'
+  '打理好自己的世界\n做好自己应做的部分',
+  '只要是越来越好的趋势\n慢一点也没关系',
+  '放下过去，放下执念\n因为痛苦过才更珍惜美好',
+  '人生只有一次\n要为自己拼命奔跑',
+  '没有人可以定义\n风的形状',
+  '值得或不值得\n行至终点之前\n没有人可以下定论',
+  '别追逐风\n你就在风中',
+  '不管是现在还是未来\n最大的对手都是我自己',
+  '与其说贩卖梦想\n不如说，我们在让更多人相信梦想',
+  '只要是自己认为值得的\n就是值得的',
+  '因为相遇了\n所以才会重逢',
+  '抬头看见星星很亮\n希望你也可以永远做你自己',
+  '未来我们会更努力\n展现更闪耀的自己',
+  '懂你的人自然就会懂你\n不理解的人强求也不来',
+  '希望我们可以一直勇敢\n坚持地走下去',
+  '因为喜欢啊\n喜欢的东西哪有那么容易忘记',
+  '不许不相信自己\n也不用质疑自己\n你就是最好的',
+  '青春就是什么都想尝试的样子\n放下过去，放下执念',
+  '努力没用\n要刻苦',
+  '每个人来到这个世界上\n都是有意义的',
+  '拥有面对自己的勇气\n各种力量也挺迷人的',
+  '不要抗拒改变\n这个世界唯一不变的事情\n就是所有的事情都在变',
+  '希望我们都能保持好奇心\n保持乐趣，保有勇气',
+  '对于想做的事情\n立刻投入一切去做\n为自己仅有一次的人生负责',
+  '不想让个人特色\n变成个人定义'
 ];
 
-const palette = ['#5D4B7A', '#8066A8', '#9277BD', '#B9A5DC', '#D6C7EE', '#FFFFFF'];
-let W = 0;
-let H = 0;
-let DPR = 1;
+const captions = [
+  '拖动/滑动粒子会像水波一样散开，松手后慢慢回归',
+  '点击一次，粒子会散开，然后组成下一句祝福',
+  '慢一点也没关系，粒子也会慢慢回到自己的位置',
+  '轻轻划过屏幕，感受柔和的薰衣草紫回弹',
+  '每一句话都会被重新绘制成粒子文字'
+];
+
+const palette = ['#4E4264', '#6B5B82', '#8D79A8', '#B6A4CC', '#D8CDEA', '#F7F3FF', '#FFFFFF'];
+let W = 0, H = 0, DPR = 1;
 let particles = [];
-let stars = [];
+let dust = [];
+let ripples = [];
 let phraseIndex = 0;
-let pointer = { x: -9999, y: -9999, down: false, active: false, lastMove: 0 };
 let morphing = false;
+let pointer = { x: -9999, y: -9999, px: -9999, py: -9999, down: false, active: false, lastMove: 0, speed: 0 };
+
+function clamp(n, min, max) { return Math.max(min, Math.min(max, n)); }
+function rand(min, max) { return min + Math.random() * (max - min); }
 
 function resize() {
   DPR = Math.min(window.devicePixelRatio || 1, 2);
@@ -38,56 +62,80 @@ function resize() {
   canvas.style.width = `${W}px`;
   canvas.style.height = `${H}px`;
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-  makeStars();
+  makeDust();
   buildText(phrases[phraseIndex], false);
 }
 
-function makeStars() {
-  const n = Math.min(90, Math.max(36, Math.floor(W * H / 15000)));
-  stars = Array.from({ length: n }, () => ({
+function makeDust() {
+  const n = clamp(Math.floor(W * H / 9000), 70, 180);
+  dust = Array.from({ length: n }, () => ({
     x: Math.random() * W,
     y: Math.random() * H,
-    r: Math.random() * 1.8 + 0.5,
-    a: Math.random() * 0.32 + 0.08,
-    vx: (Math.random() - 0.5) * 0.08,
-    vy: (Math.random() - 0.5) * 0.08
+    r: rand(0.5, 2.2),
+    a: rand(0.08, 0.34),
+    vx: rand(-0.11, 0.11),
+    vy: rand(-0.10, 0.10),
+    pulse: Math.random() * Math.PI * 2
   }));
 }
 
-function measureFont(text) {
-  const lines = text.split('\n');
-  const longest = lines.reduce((a, b) => (a.length > b.length ? a : b), '');
-  let size = Math.min(W / Math.max(longest.length * 0.92, 4), H * 0.15, 112);
-  size = Math.max(size, W < 560 ? 44 : 64);
-  const lineHeight = size * 1.25;
-  return { size, lineHeight, lines };
+function wrapText(ctx2, text, maxWidth) {
+  const raw = text.split('\n');
+  const out = [];
+  for (const para of raw) {
+    let line = '';
+    for (const ch of para) {
+      const test = line + ch;
+      if (ctx2.measureText(test).width > maxWidth && line) {
+        out.push(line);
+        line = ch;
+      } else {
+        line = test;
+      }
+    }
+    if (line) out.push(line);
+  }
+  return out;
+}
+
+function textLayout(text, ctx2) {
+  let size = W < 560 ? 34 : 58;
+  if (text.length <= 8) size = W < 560 ? 54 : 86;
+  else if (text.length <= 18) size = W < 560 ? 42 : 70;
+  else if (text.length > 34) size = W < 560 ? 27 : 45;
+  size = clamp(size, 24, Math.min(96, W / 3.8));
+  ctx2.font = `800 ${size}px "PingFang SC", "Microsoft YaHei", system-ui, sans-serif`;
+  let lines = wrapText(ctx2, text, W * (W < 560 ? 0.9 : 0.82));
+  while (lines.length > 4 && size > 22) {
+    size -= 3;
+    ctx2.font = `800 ${size}px "PingFang SC", "Microsoft YaHei", system-ui, sans-serif`;
+    lines = wrapText(ctx2, text, W * (W < 560 ? 0.92 : 0.84));
+  }
+  return { size, lines, lineHeight: size * 1.28 };
 }
 
 function getTextTargets(text) {
   const off = document.createElement('canvas');
   const octx = off.getContext('2d');
-  const { size, lineHeight, lines } = measureFont(text);
   off.width = Math.floor(W * DPR);
   off.height = Math.floor(H * DPR);
   octx.setTransform(DPR, 0, 0, DPR, 0, 0);
   octx.clearRect(0, 0, W, H);
-  octx.fillStyle = '#111';
   octx.textAlign = 'center';
   octx.textBaseline = 'middle';
+  const { size, lines, lineHeight } = textLayout(text, octx);
   octx.font = `800 ${size}px "PingFang SC", "Microsoft YaHei", system-ui, sans-serif`;
-  const centerY = H * (W < 560 ? 0.53 : 0.55);
+  octx.fillStyle = '#111';
+  const centerY = H * (W < 560 ? 0.54 : 0.56);
   const totalH = (lines.length - 1) * lineHeight;
-  lines.forEach((line, i) => {
-    octx.fillText(line, W / 2, centerY - totalH / 2 + i * lineHeight);
-  });
+  lines.forEach((line, i) => octx.fillText(line, W / 2, centerY - totalH / 2 + i * lineHeight));
 
-  const img = octx.getImageData(0, 0, off.width, off.height).data;
+  const data = octx.getImageData(0, 0, off.width, off.height).data;
   const gap = W < 560 ? 5 : 6;
   const targets = [];
   for (let y = 0; y < off.height; y += gap * DPR) {
     for (let x = 0; x < off.width; x += gap * DPR) {
-      const alpha = img[(y * off.width + x) * 4 + 3];
-      if (alpha > 80) targets.push({ x: x / DPR, y: y / DPR });
+      if (data[(y * off.width + x) * 4 + 3] > 80) targets.push({ x: x / DPR, y: y / DPR });
     }
   }
   return targets;
@@ -97,105 +145,131 @@ function buildText(text, scatter = true) {
   const targets = getTextTargets(text);
   const old = particles;
   const next = [];
-  for (let i = 0; i < targets.length; i += 1) {
+  const maxParticles = W < 560 ? 2300 : 3600;
+  const step = Math.max(1, Math.ceil(targets.length / maxParticles));
+  for (let k = 0, i = 0; i < targets.length; i += step, k++) {
     const t = targets[i];
-    const prev = old[i % Math.max(old.length, 1)];
+    const prev = old[k % Math.max(old.length, 1)];
     const angle = Math.random() * Math.PI * 2;
-    const dist = scatter ? 120 + Math.random() * Math.max(W, H) * 0.55 : 0;
+    const dist = scatter ? rand(180, Math.max(W, H) * 0.72) : 0;
     next.push({
       x: prev ? prev.x : t.x + Math.cos(angle) * dist,
       y: prev ? prev.y : t.y + Math.sin(angle) * dist,
       tx: t.x,
       ty: t.y,
-      vx: scatter ? Math.cos(angle) * (4 + Math.random() * 8) : (Math.random() - 0.5),
-      vy: scatter ? Math.sin(angle) * (4 + Math.random() * 8) : (Math.random() - 0.5),
-      r: Math.random() * 1.45 + (W < 560 ? 1.15 : 1.35),
+      ox: t.x,
+      oy: t.y,
+      vx: scatter ? Math.cos(angle) * rand(4, 12) : rand(-0.5, 0.5),
+      vy: scatter ? Math.sin(angle) * rand(4, 12) : rand(-0.5, 0.5),
+      r: rand(W < 560 ? 1.05 : 1.15, W < 560 ? 2.55 : 2.9),
       color: palette[Math.floor(Math.random() * palette.length)],
-      a: Math.random() * 0.35 + 0.62
+      a: rand(0.62, 0.96),
+      phase: Math.random() * Math.PI * 2
     });
   }
   particles = next;
 }
 
-function nextPhrase() {
-  if (morphing) return;
-  morphing = true;
-  scatterAll(1.35);
-  setTimeout(() => {
-    phraseIndex = (phraseIndex + 1) % phrases.length;
-    caption.textContent = captions[phraseIndex];
-    buildText(phrases[phraseIndex], true);
-    morphing = false;
-  }, 430);
-}
-
 function scatterAll(power = 1) {
   const cx = pointer.active ? pointer.x : W / 2;
-  const cy = pointer.active ? pointer.y : H / 2;
+  const cy = pointer.active ? pointer.y : H * 0.56;
+  ripples.push({ x: cx, y: cy, r: 0, a: 0.55, w: 18 });
   for (const p of particles) {
-    const dx = p.x - cx;
-    const dy = p.y - cy;
+    const dx = p.x - cx, dy = p.y - cy;
     const d = Math.hypot(dx, dy) || 1;
-    const force = (7 + Math.random() * 6) * power;
-    p.vx += (dx / d) * force + (Math.random() - 0.5) * 4;
-    p.vy += (dy / d) * force + (Math.random() - 0.5) * 4;
+    const wave = clamp(1 - d / Math.max(W, H), 0.25, 1);
+    const force = rand(7, 14) * power * wave;
+    p.vx += (dx / d) * force + rand(-2.8, 2.8);
+    p.vy += (dy / d) * force + rand(-2.8, 2.8);
   }
 }
 
+function nextPhrase() {
+  if (morphing) return;
+  morphing = true;
+  scatterAll(1.45);
+  setTimeout(() => {
+    phraseIndex = (phraseIndex + 1) % phrases.length;
+    caption.textContent = captions[phraseIndex % captions.length] + ` · ${phraseIndex + 1}/${phrases.length}`;
+    buildText(phrases[phraseIndex], true);
+    morphing = false;
+  }, 520);
+}
+
 function drawBackground() {
-  const glow = ctx.createRadialGradient(W * 0.5, H * 0.55, 20, W * 0.5, H * 0.55, Math.max(W, H) * 0.58);
-  glow.addColorStop(0, 'rgba(255,255,255,.55)');
-  glow.addColorStop(0.45, 'rgba(214,199,238,.18)');
-  glow.addColorStop(1, 'rgba(214,199,238,0)');
-  ctx.fillStyle = glow;
+  const g = ctx.createRadialGradient(W * 0.5, H * 0.56, 20, W * 0.5, H * 0.56, Math.max(W, H) * 0.72);
+  g.addColorStop(0, 'rgba(255,255,255,.62)');
+  g.addColorStop(0.38, 'rgba(216,205,234,.22)');
+  g.addColorStop(1, 'rgba(216,205,234,0)');
+  ctx.fillStyle = g;
   ctx.fillRect(0, 0, W, H);
 
-  for (const s of stars) {
-    s.x += s.vx; s.y += s.vy;
-    if (s.x < -10) s.x = W + 10;
-    if (s.x > W + 10) s.x = -10;
-    if (s.y < -10) s.y = H + 10;
-    if (s.y > H + 10) s.y = -10;
+  for (const d of dust) {
+    d.x += d.vx; d.y += d.vy; d.pulse += 0.015;
+    if (d.x < -10) d.x = W + 10; if (d.x > W + 10) d.x = -10;
+    if (d.y < -10) d.y = H + 10; if (d.y > H + 10) d.y = -10;
     ctx.beginPath();
-    ctx.globalAlpha = s.a;
-    ctx.fillStyle = '#9277BD';
-    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    ctx.globalAlpha = d.a * (0.75 + Math.sin(d.pulse) * 0.25);
+    ctx.fillStyle = '#9B86B8';
+    ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.globalAlpha = 1;
 }
 
+function drawRipples() {
+  ripples = ripples.filter(r => r.a > 0.01);
+  for (const r of ripples) {
+    r.r += r.w;
+    r.w *= 0.965;
+    r.a *= 0.93;
+    ctx.beginPath();
+    ctx.strokeStyle = `rgba(155,134,184,${r.a})`;
+    ctx.lineWidth = 1.4;
+    ctx.arc(r.x, r.y, r.r, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}
+
 function updateParticles() {
   const now = performance.now();
-  if (pointer.active && now - pointer.lastMove > 900 && !pointer.down) pointer.active = false;
+  if (pointer.active && now - pointer.lastMove > 780 && !pointer.down) pointer.active = false;
 
   for (const p of particles) {
-    let ax = (p.tx - p.x) * 0.018;
-    let ay = (p.ty - p.y) * 0.018;
+    const breathe = Math.sin(now * 0.0012 + p.phase) * 1.4;
+    p.tx = p.ox + breathe;
+    p.ty = p.oy + Math.cos(now * 0.001 + p.phase) * 1.1;
+
+    let ax = (p.tx - p.x) * 0.022;
+    let ay = (p.ty - p.y) * 0.022;
 
     if (pointer.active) {
-      const dx = p.x - pointer.x;
-      const dy = p.y - pointer.y;
+      const dx = p.x - pointer.x, dy = p.y - pointer.y;
       const dist = Math.hypot(dx, dy) || 1;
-      const radius = pointer.down ? 170 : 135;
+      const radius = pointer.down ? 300 : 250;
       if (dist < radius) {
-        const force = (1 - dist / radius) * (pointer.down ? 2.2 : 1.35);
+        const t = 1 - dist / radius;
+        const force = (pointer.down ? 3.2 : 2.35) * t * t * (1 + pointer.speed * 0.018);
         ax += (dx / dist) * force;
         ay += (dy / dist) * force;
+        // soft tangential swirl for decompression feeling
+        ax += (-dy / dist) * force * 0.22;
+        ay += (dx / dist) * force * 0.22;
       }
     }
 
-    p.vx = (p.vx + ax) * 0.86;
-    p.vy = (p.vy + ay) * 0.86;
+    p.vx = (p.vx + ax) * 0.875;
+    p.vy = (p.vy + ay) * 0.875;
     p.x += p.vx;
     p.y += p.vy;
 
+    const speedGlow = clamp(Math.hypot(p.vx, p.vy) / 10, 0, 1);
     ctx.beginPath();
     ctx.globalAlpha = p.a;
     ctx.fillStyle = p.color;
     ctx.shadowColor = p.color;
-    ctx.shadowBlur = 10;
-    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.shadowBlur = 8 + speedGlow * 18;
+    ctx.arc(p.x, p.y, p.r + speedGlow * 0.9, 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.globalAlpha = 1;
@@ -203,21 +277,17 @@ function updateParticles() {
 }
 
 function drawLinks() {
-  const step = Math.max(1, Math.floor(particles.length / 360));
+  const step = Math.max(2, Math.floor(particles.length / 420));
   for (let i = 0; i < particles.length; i += step) {
     const a = particles[i];
     for (let j = i + step; j < particles.length; j += step) {
       const b = particles[j];
-      const dx = a.x - b.x;
-      const dy = a.y - b.y;
-      const dist = Math.hypot(dx, dy);
-      if (dist < 32) {
+      const dist = Math.hypot(a.x - b.x, a.y - b.y);
+      if (dist < 30) {
         ctx.beginPath();
-        ctx.strokeStyle = `rgba(146,119,189,${0.08 * (1 - dist / 32)})`;
-        ctx.lineWidth = 0.8;
-        ctx.moveTo(a.x, a.y);
-        ctx.lineTo(b.x, b.y);
-        ctx.stroke();
+        ctx.strokeStyle = `rgba(155,134,184,${0.09 * (1 - dist / 30)})`;
+        ctx.lineWidth = 0.7;
+        ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
       }
     }
   }
@@ -226,9 +296,19 @@ function drawLinks() {
 function animate() {
   ctx.clearRect(0, 0, W, H);
   drawBackground();
+  drawRipples();
   updateParticles();
   drawLinks();
   requestAnimationFrame(animate);
+}
+
+function setPointer(event, active = true) {
+  const x = event.clientX, y = event.clientY;
+  pointer.speed = Math.hypot(x - pointer.px, y - pointer.py);
+  pointer.px = pointer.x = x;
+  pointer.py = pointer.y = y;
+  pointer.active = active;
+  pointer.lastMove = performance.now();
 }
 
 function showToast(message) {
@@ -241,25 +321,23 @@ function showToast(message) {
   setTimeout(() => toast.remove(), 1700);
 }
 
-window.addEventListener('resize', resize);
-window.addEventListener('pointermove', (event) => {
-  pointer.x = event.clientX;
-  pointer.y = event.clientY;
-  pointer.active = true;
-  pointer.lastMove = performance.now();
+// Prevent mobile page scrolling while interacting with the canvas.
+['touchstart', 'touchmove', 'touchend', 'gesturestart'].forEach(type => {
+  window.addEventListener(type, e => e.preventDefault(), { passive: false });
 });
+
+window.addEventListener('resize', resize);
+window.addEventListener('pointermove', (event) => { setPointer(event); });
 window.addEventListener('pointerdown', (event) => {
   if (event.target.closest('button')) return;
-  pointer.x = event.clientX;
-  pointer.y = event.clientY;
+  event.preventDefault();
+  setPointer(event);
   pointer.down = true;
-  pointer.active = true;
-  pointer.lastMove = performance.now();
   nextPhrase();
 });
-window.addEventListener('pointerup', () => { pointer.down = false; });
-window.addEventListener('pointercancel', () => { pointer.down = false; pointer.active = false; });
-window.addEventListener('pointerleave', () => { pointer.down = false; pointer.active = false; });
+window.addEventListener('pointerup', () => { pointer.down = false; pointer.speed = 0; });
+window.addEventListener('pointercancel', () => { pointer.down = false; pointer.active = false; pointer.speed = 0; });
+window.addEventListener('pointerleave', () => { pointer.down = false; pointer.active = false; pointer.speed = 0; });
 
 nextBtn.addEventListener('click', (event) => {
   event.stopPropagation();
@@ -273,15 +351,11 @@ nextBtn.addEventListener('click', (event) => {
 
 copyBtn.addEventListener('click', async (event) => {
   event.stopPropagation();
-  try {
-    await navigator.clipboard.writeText(location.href);
-    showToast('链接已复制');
-  } catch {
-    showToast('请手动复制地址栏链接');
-  }
+  try { await navigator.clipboard.writeText(location.href); showToast('链接已复制'); }
+  catch { showToast('请手动复制地址栏链接'); }
 });
 
 resize();
-caption.textContent = captions[0];
+caption.textContent = captions[0] + ` · 1/${phrases.length}`;
 animate();
-setTimeout(() => scatterAll(0.45), 320);
+setTimeout(() => scatterAll(0.35), 380);
