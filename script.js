@@ -42,8 +42,8 @@ const captions = [
 ];
 
 const edgePalette = ['#3F3454', '#514368', '#6A5A84', '#806D9D'];
-const fillPalette = ['#A691C3', '#BBA9D2', '#D9CEE8', '#F7F3FF', '#FFFFFF'];
-const orbPalette = ['rgba(155,134,184,', 'rgba(216,205,234,', 'rgba(255,255,255,'];
+const fillPalette = ['#A691C3', '#BBA9D2', '#D9CEE8', '#EDE7F6', '#F4F0FB'];
+const orbPalette = ['rgba(155,134,184,', 'rgba(216,205,234,', 'rgba(244,240,251,'];
 
 let W = 0, H = 0, DPR = 1;
 let particles = [];
