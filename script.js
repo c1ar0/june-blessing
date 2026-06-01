@@ -34,25 +34,30 @@ const phrases = [
 ];
 
 const captions = [
-  '拖动/滑动粒子会像水波一样散开，松手后慢慢回归',
-  '点击一次，粒子会散开，然后组成下一句祝福',
-  '慢一点也没关系，粒子也会慢慢回到自己的位置',
-  '轻轻划过屏幕，感受柔和的薰衣草紫回弹',
-  '每一句话都会被重新绘制成粒子文字'
+  '小粒子勾勒笔画，大粒子填充字心',
+  '滑动会拨开星尘，松开后慢慢回到文字',
+  '点击一次，粒子散开并组成下一句祝福',
+  '周围的半透明光斑会一起轻轻流动',
+  '这是纯粒子描边版，没有普通实体描边'
 ];
 
-const palette = ['#4E4264', '#6B5B82', '#8D79A8', '#B6A4CC', '#D8CDEA', '#F7F3FF', '#FFFFFF'];
+const edgePalette = ['#3F3454', '#514368', '#6A5A84', '#806D9D'];
+const fillPalette = ['#A691C3', '#BBA9D2', '#D9CEE8', '#F7F3FF', '#FFFFFF'];
+const orbPalette = ['rgba(155,134,184,', 'rgba(216,205,234,', 'rgba(255,255,255,'];
+
 let W = 0, H = 0, DPR = 1;
 let particles = [];
 let dust = [];
+let orbs = [];
 let ripples = [];
-let currentTextRender = { lines: ['顾老师', '六月快乐'], size: 64, lineHeight: 82, centerY: 0 };
+let textMeta = { lines: ['顾老师', '六月快乐'], size: 64, lineHeight: 80, centerY: 0 };
 let phraseIndex = 0;
 let morphing = false;
 let pointer = { x: -9999, y: -9999, px: -9999, py: -9999, down: false, active: false, lastMove: 0, speed: 0 };
 
 function clamp(n, min, max) { return Math.max(min, Math.min(max, n)); }
 function rand(min, max) { return min + Math.random() * (max - min); }
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
 function resize() {
   DPR = Math.min(window.devicePixelRatio || 1, 2);
@@ -63,36 +68,36 @@ function resize() {
   canvas.style.width = `${W}px`;
   canvas.style.height = `${H}px`;
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-  makeDust();
+  makeAtmosphere();
   buildText(phrases[phraseIndex], false);
 }
 
-function makeDust() {
-  const n = clamp(Math.floor(W * H / 9000), 70, 180);
-  dust = Array.from({ length: n }, () => ({
-    x: Math.random() * W,
-    y: Math.random() * H,
-    r: rand(0.5, 2.2),
-    a: rand(0.08, 0.34),
-    vx: rand(-0.11, 0.11),
-    vy: rand(-0.10, 0.10),
-    pulse: Math.random() * Math.PI * 2
+function makeAtmosphere() {
+  const dustCount = clamp(Math.floor(W * H / 12000), 45, 130);
+  dust = Array.from({ length: dustCount }, () => ({
+    x: Math.random() * W, y: Math.random() * H,
+    r: rand(0.45, 1.55), a: rand(0.05, 0.22),
+    vx: rand(-0.08, 0.08), vy: rand(-0.08, 0.08), pulse: Math.random() * Math.PI * 2
+  }));
+
+  const orbCount = W < 560 ? 18 : 30;
+  orbs = Array.from({ length: orbCount }, () => ({
+    x: Math.random() * W, y: Math.random() * H,
+    r: rand(W < 560 ? 14 : 18, W < 560 ? 42 : 58),
+    a: rand(0.035, 0.13),
+    vx: rand(-0.16, 0.16), vy: rand(-0.12, 0.12),
+    color: pick(orbPalette), pulse: Math.random() * Math.PI * 2
   }));
 }
 
 function wrapText(ctx2, text, maxWidth) {
-  const raw = text.split('\n');
   const out = [];
-  for (const para of raw) {
+  for (const para of text.split('\n')) {
     let line = '';
     for (const ch of para) {
       const test = line + ch;
-      if (ctx2.measureText(test).width > maxWidth && line) {
-        out.push(line);
-        line = ch;
-      } else {
-        line = test;
-      }
+      if (ctx2.measureText(test).width > maxWidth && line) { out.push(line); line = ch; }
+      else line = test;
     }
     if (line) out.push(line);
   }
@@ -100,34 +105,31 @@ function wrapText(ctx2, text, maxWidth) {
 }
 
 function textLayout(text, ctx2) {
-  const maxWidth = W * (W < 560 ? 0.90 : 0.80);
-  const maxHeight = H * (W < 560 ? 0.48 : 0.52);
+  const maxWidth = W * (W < 560 ? 0.91 : 0.82);
+  const maxHeight = H * (W < 560 ? 0.48 : 0.54);
   const minSize = W < 560 ? 25 : 36;
   let size = W < 560 ? 44 : 72;
-
-  if (text.length <= 8) size = W < 560 ? 76 : 118;
-  else if (text.length <= 16) size = W < 560 ? 58 : 90;
-  else if (text.length <= 24) size = W < 560 ? 48 : 76;
+  if (text.length <= 8) size = W < 560 ? 78 : 120;
+  else if (text.length <= 16) size = W < 560 ? 58 : 92;
+  else if (text.length <= 24) size = W < 560 ? 48 : 78;
   else if (text.length > 34) size = W < 560 ? 34 : 56;
-
-  size = clamp(size, minSize, Math.min(W < 560 ? 82 : 124, W / 3.05));
+  size = clamp(size, minSize, Math.min(W < 560 ? 84 : 126, W / 3));
 
   let lines = [];
-  let lineHeight = size * 1.24;
+  let lineHeight = size * 1.22;
   while (size >= minSize) {
     ctx2.font = `900 ${size}px "PingFang SC", "Microsoft YaHei", system-ui, sans-serif`;
     lines = wrapText(ctx2, text, maxWidth);
-    lineHeight = size * 1.24;
+    lineHeight = size * 1.22;
     const totalHeight = lines.length * lineHeight;
     const widest = Math.max(...lines.map(line => ctx2.measureText(line).width), 0);
     if (lines.length <= 4 && totalHeight <= maxHeight && widest <= maxWidth) break;
     size -= 2;
   }
-
   return { size, lines, lineHeight };
 }
 
-function getTextTargets(text) {
+function getTextMaps(text) {
   const off = document.createElement('canvas');
   const octx = off.getContext('2d');
   off.width = Math.floor(W * DPR);
@@ -141,45 +143,83 @@ function getTextTargets(text) {
   octx.fillStyle = '#111';
   const centerY = H * (W < 560 ? 0.56 : 0.57);
   const totalH = (lines.length - 1) * lineHeight;
-  currentTextRender = { lines, size, lineHeight, centerY };
   lines.forEach((line, i) => octx.fillText(line, W / 2, centerY - totalH / 2 + i * lineHeight));
+  textMeta = { lines, size, lineHeight, centerY };
 
   const data = octx.getImageData(0, 0, off.width, off.height).data;
-  const gap = W < 560 ? 3 : 4;
-  const targets = [];
-  for (let y = 0; y < off.height; y += gap * DPR) {
-    for (let x = 0; x < off.width; x += gap * DPR) {
-      if (data[(y * off.width + x) * 4 + 3] > 80) targets.push({ x: x / DPR, y: y / DPR });
-    }
-  }
-  return targets;
+  return { data, width: off.width, height: off.height };
+}
+
+function isSolid(data, width, height, x, y) {
+  if (x < 0 || y < 0 || x >= width || y >= height) return false;
+  return data[(y * width + x) * 4 + 3] > 80;
+}
+
+function isEdge(data, width, height, x, y, span) {
+  if (!isSolid(data, width, height, x, y)) return false;
+  return !isSolid(data, width, height, x + span, y) ||
+         !isSolid(data, width, height, x - span, y) ||
+         !isSolid(data, width, height, x, y + span) ||
+         !isSolid(data, width, height, x, y - span) ||
+         !isSolid(data, width, height, x + span, y + span) ||
+         !isSolid(data, width, height, x - span, y - span);
+}
+
+function makeParticle(target, old, layer) {
+  const angle = Math.random() * Math.PI * 2;
+  const dist = layer.scatter ? rand(180, Math.max(W, H) * 0.72) : 0;
+  const prev = old;
+  const edge = layer.kind === 'edge';
+  return {
+    x: prev ? prev.x : target.x + Math.cos(angle) * dist,
+    y: prev ? prev.y : target.y + Math.sin(angle) * dist,
+    tx: target.x, ty: target.y, ox: target.x, oy: target.y,
+    vx: layer.scatter ? Math.cos(angle) * rand(edge ? 4 : 6, edge ? 10 : 14) : rand(-0.4, 0.4),
+    vy: layer.scatter ? Math.sin(angle) * rand(edge ? 4 : 6, edge ? 10 : 14) : rand(-0.4, 0.4),
+    r: edge ? rand(0.42, W < 560 ? 0.86 : 0.95) : rand(W < 560 ? 1.15 : 1.3, W < 560 ? 2.45 : 2.8),
+    a: edge ? rand(0.78, 1) : rand(0.38, 0.68),
+    color: edge ? pick(edgePalette) : pick(fillPalette),
+    kind: layer.kind,
+    stiffness: edge ? 0.034 : 0.020,
+    friction: edge ? 0.82 : 0.885,
+    push: edge ? 1.0 : 1.55,
+    blur: edge ? 0.8 : 5.5,
+    phase: Math.random() * Math.PI * 2
+  };
 }
 
 function buildText(text, scatter = true) {
-  const targets = getTextTargets(text);
+  const { data, width, height } = getTextMaps(text);
+  const edgeGap = W < 560 ? 2.4 : 3.0;
+  const fillGap = W < 560 ? 5.4 : 6.4;
+  const span = Math.max(1, Math.round(2 * DPR));
+  const edges = [];
+  const fills = [];
+
+  for (let y = 0; y < height; y += Math.max(1, Math.round(edgeGap * DPR))) {
+    for (let x = 0; x < width; x += Math.max(1, Math.round(edgeGap * DPR))) {
+      if (isEdge(data, width, height, x, y, span)) edges.push({ x: x / DPR, y: y / DPR });
+    }
+  }
+  for (let y = 0; y < height; y += Math.max(1, Math.round(fillGap * DPR))) {
+    for (let x = 0; x < width; x += Math.max(1, Math.round(fillGap * DPR))) {
+      if (isSolid(data, width, height, x, y) && !isEdge(data, width, height, x, y, span * 2)) fills.push({ x: x / DPR, y: y / DPR });
+    }
+  }
+
   const old = particles;
+  const maxEdge = W < 560 ? 5200 : 7600;
+  const maxFill = W < 560 ? 1700 : 2500;
+  const edgeStep = Math.max(1, Math.ceil(edges.length / maxEdge));
+  const fillStep = Math.max(1, Math.ceil(fills.length / maxFill));
   const next = [];
-  const maxParticles = W < 560 ? 6500 : 9000;
-  const step = Math.max(1, Math.ceil(targets.length / maxParticles));
-  for (let k = 0, i = 0; i < targets.length; i += step, k++) {
-    const t = targets[i];
-    const prev = old[k % Math.max(old.length, 1)];
-    const angle = Math.random() * Math.PI * 2;
-    const dist = scatter ? rand(180, Math.max(W, H) * 0.72) : 0;
-    next.push({
-      x: prev ? prev.x : t.x + Math.cos(angle) * dist,
-      y: prev ? prev.y : t.y + Math.sin(angle) * dist,
-      tx: t.x,
-      ty: t.y,
-      ox: t.x,
-      oy: t.y,
-      vx: scatter ? Math.cos(angle) * rand(4, 12) : rand(-0.5, 0.5),
-      vy: scatter ? Math.sin(angle) * rand(4, 12) : rand(-0.5, 0.5),
-      r: rand(W < 560 ? 0.72 : 0.82, W < 560 ? 1.38 : 1.62),
-      color: palette[Math.floor(Math.random() * palette.length)],
-      a: rand(0.62, 0.96),
-      phase: Math.random() * Math.PI * 2
-    });
+
+  for (let i = 0, k = 0; i < edges.length; i += edgeStep, k++) {
+    next.push(makeParticle(edges[i], old[k % Math.max(old.length, 1)], { kind: 'edge', scatter }));
+  }
+  const offset = next.length;
+  for (let i = 0, k = 0; i < fills.length; i += fillStep, k++) {
+    next.push(makeParticle(fills[i], old[(offset + k) % Math.max(old.length, 1)], { kind: 'fill', scatter }));
   }
   particles = next;
 }
@@ -187,36 +227,56 @@ function buildText(text, scatter = true) {
 function scatterAll(power = 1) {
   const cx = pointer.active ? pointer.x : W / 2;
   const cy = pointer.active ? pointer.y : H * 0.56;
-  ripples.push({ x: cx, y: cy, r: 0, a: 0.55, w: 18 });
+  ripples.push({ x: cx, y: cy, r: 0, a: 0.45, w: 19 });
   for (const p of particles) {
     const dx = p.x - cx, dy = p.y - cy;
     const d = Math.hypot(dx, dy) || 1;
-    const wave = clamp(1 - d / Math.max(W, H), 0.25, 1);
-    const force = rand(7, 14) * power * wave;
-    p.vx += (dx / d) * force + rand(-2.8, 2.8);
-    p.vy += (dy / d) * force + rand(-2.8, 2.8);
+    const wave = clamp(1 - d / Math.max(W, H), 0.22, 1);
+    const force = rand(p.kind === 'edge' ? 5 : 8, p.kind === 'edge' ? 10 : 16) * power * wave;
+    p.vx += (dx / d) * force + rand(-2.2, 2.2);
+    p.vy += (dy / d) * force + rand(-2.2, 2.2);
   }
 }
 
 function nextPhrase() {
   if (morphing) return;
   morphing = true;
-  scatterAll(1.45);
+  scatterAll(1.4);
   setTimeout(() => {
     phraseIndex = (phraseIndex + 1) % phrases.length;
     caption.textContent = captions[phraseIndex % captions.length] + ` · ${phraseIndex + 1}/${phrases.length}`;
     buildText(phrases[phraseIndex], true);
     morphing = false;
-  }, 520);
+  }, 540);
 }
 
 function drawBackground() {
-  const g = ctx.createRadialGradient(W * 0.5, H * 0.56, 20, W * 0.5, H * 0.56, Math.max(W, H) * 0.72);
+  const g = ctx.createRadialGradient(W * 0.5, H * 0.56, 20, W * 0.5, H * 0.56, Math.max(W, H) * 0.76);
   g.addColorStop(0, 'rgba(255,255,255,.62)');
   g.addColorStop(0.38, 'rgba(216,205,234,.22)');
   g.addColorStop(1, 'rgba(216,205,234,0)');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, W, H);
+
+  for (const o of orbs) {
+    o.pulse += 0.01;
+    o.x += o.vx; o.y += o.vy;
+    const dx = o.x - pointer.x, dy = o.y - pointer.y;
+    const d = Math.hypot(dx, dy) || 1;
+    if (pointer.active && d < 260) {
+      const f = (1 - d / 260) * 0.28;
+      o.x += (dx / d) * f * (pointer.down ? 3.5 : 2);
+      o.y += (dy / d) * f * (pointer.down ? 3.5 : 2);
+    }
+    if (o.x < -80) o.x = W + 80; if (o.x > W + 80) o.x = -80;
+    if (o.y < -80) o.y = H + 80; if (o.y > H + 80) o.y = -80;
+    const r = o.r * (0.92 + Math.sin(o.pulse) * 0.08);
+    const grad = ctx.createRadialGradient(o.x, o.y, 0, o.x, o.y, r);
+    grad.addColorStop(0, `${o.color}${o.a})`);
+    grad.addColorStop(1, `${o.color}0)`);
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(o.x, o.y, r, 0, Math.PI * 2); ctx.fill();
+  }
 
   for (const d of dust) {
     d.x += d.vx; d.y += d.vy; d.pulse += 0.015;
@@ -234,9 +294,7 @@ function drawBackground() {
 function drawRipples() {
   ripples = ripples.filter(r => r.a > 0.01);
   for (const r of ripples) {
-    r.r += r.w;
-    r.w *= 0.965;
-    r.a *= 0.93;
+    r.r += r.w; r.w *= 0.965; r.a *= 0.93;
     ctx.beginPath();
     ctx.strokeStyle = `rgba(155,134,184,${r.a})`;
     ctx.lineWidth = 1.4;
@@ -245,49 +303,17 @@ function drawRipples() {
   }
 }
 
-function drawReadableText() {
-  if (!currentTextRender || !currentTextRender.lines) return;
-  const { lines, size, lineHeight, centerY } = currentTextRender;
+function drawGhostText() {
+  // Extremely weak text shadow: only prevents unreadability on low-contrast screens.
+  const { lines, size, lineHeight, centerY } = textMeta;
   const totalH = (lines.length - 1) * lineHeight;
   ctx.save();
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.font = `900 ${size}px "PingFang SC", "Microsoft YaHei", system-ui, sans-serif`;
-  ctx.lineJoin = 'round';
-  ctx.shadowBlur = 0;
-
   lines.forEach((line, i) => {
     const y = centerY - totalH / 2 + i * lineHeight;
-    // A light but crisp skeleton under the particles keeps Chinese strokes readable
-    // without losing the particle-text effect.
-    ctx.lineWidth = Math.max(3.2, size * 0.064);
-    ctx.strokeStyle = 'rgba(255,255,255,0.90)';
-    ctx.strokeText(line, W / 2, y);
-    ctx.lineWidth = Math.max(1.8, size * 0.030);
-    ctx.strokeStyle = 'rgba(56,46,76,0.66)';
-    ctx.strokeText(line, W / 2, y);
-    ctx.fillStyle = 'rgba(56,46,76,0.36)';
-    ctx.fillText(line, W / 2, y);
-  });
-  ctx.restore();
-}
-
-function drawFinalTextClarity() {
-  if (!currentTextRender || !currentTextRender.lines) return;
-  const { lines, size, lineHeight, centerY } = currentTextRender;
-  const totalH = (lines.length - 1) * lineHeight;
-  ctx.save();
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.font = `900 ${size}px "PingFang SC", "Microsoft YaHei", system-ui, sans-serif`;
-  ctx.lineJoin = 'round';
-  ctx.shadowBlur = 0;
-  lines.forEach((line, i) => {
-    const y = centerY - totalH / 2 + i * lineHeight;
-    ctx.lineWidth = Math.max(0.9, size * 0.012);
-    ctx.strokeStyle = 'rgba(56,46,76,0.38)';
-    ctx.strokeText(line, W / 2, y);
-    ctx.fillStyle = 'rgba(56,46,76,0.18)';
+    ctx.fillStyle = 'rgba(56,46,76,0.055)';
     ctx.fillText(line, W / 2, y);
   });
   ctx.restore();
@@ -298,40 +324,38 @@ function updateParticles() {
   if (pointer.active && now - pointer.lastMove > 780 && !pointer.down) pointer.active = false;
 
   for (const p of particles) {
-    const breathe = Math.sin(now * 0.0012 + p.phase) * 1.4;
+    const breathe = Math.sin(now * 0.0011 + p.phase) * (p.kind === 'edge' ? 0.7 : 1.8);
     p.tx = p.ox + breathe;
-    p.ty = p.oy + Math.cos(now * 0.001 + p.phase) * 1.1;
+    p.ty = p.oy + Math.cos(now * 0.001 + p.phase) * (p.kind === 'edge' ? 0.6 : 1.4);
 
-    let ax = (p.tx - p.x) * 0.022;
-    let ay = (p.ty - p.y) * 0.022;
+    let ax = (p.tx - p.x) * p.stiffness;
+    let ay = (p.ty - p.y) * p.stiffness;
 
     if (pointer.active) {
       const dx = p.x - pointer.x, dy = p.y - pointer.y;
       const dist = Math.hypot(dx, dy) || 1;
-      const radius = pointer.down ? 300 : 250;
+      const radius = pointer.down ? 310 : 255;
       if (dist < radius) {
         const t = 1 - dist / radius;
-        const force = (pointer.down ? 3.2 : 2.35) * t * t * (1 + pointer.speed * 0.018);
+        const force = p.push * (pointer.down ? 3.0 : 2.15) * t * t * (1 + pointer.speed * 0.016);
         ax += (dx / dist) * force;
         ay += (dy / dist) * force;
-        // soft tangential swirl for decompression feeling
-        ax += (-dy / dist) * force * 0.22;
-        ay += (dx / dist) * force * 0.22;
+        ax += (-dy / dist) * force * 0.20;
+        ay += (dx / dist) * force * 0.20;
       }
     }
 
-    p.vx = (p.vx + ax) * 0.875;
-    p.vy = (p.vy + ay) * 0.875;
-    p.x += p.vx;
-    p.y += p.vy;
+    p.vx = (p.vx + ax) * p.friction;
+    p.vy = (p.vy + ay) * p.friction;
+    p.x += p.vx; p.y += p.vy;
 
     const speedGlow = clamp(Math.hypot(p.vx, p.vy) / 10, 0, 1);
     ctx.beginPath();
     ctx.globalAlpha = p.a;
     ctx.fillStyle = p.color;
     ctx.shadowColor = p.color;
-    ctx.shadowBlur = 1.5 + speedGlow * 4.5;
-    ctx.arc(p.x, p.y, p.r + speedGlow * 0.22, 0, Math.PI * 2);
+    ctx.shadowBlur = p.blur + speedGlow * (p.kind === 'edge' ? 2.0 : 8.0);
+    ctx.arc(p.x, p.y, p.r + speedGlow * (p.kind === 'edge' ? 0.12 : 0.45), 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.globalAlpha = 1;
@@ -339,16 +363,17 @@ function updateParticles() {
 }
 
 function drawLinks() {
-  const step = Math.max(2, Math.floor(particles.length / 420));
-  for (let i = 0; i < particles.length; i += step) {
-    const a = particles[i];
-    for (let j = i + step; j < particles.length; j += step) {
-      const b = particles[j];
+  const edgeParticles = particles.filter(p => p.kind === 'edge');
+  const step = Math.max(3, Math.floor(edgeParticles.length / 500));
+  for (let i = 0; i < edgeParticles.length; i += step) {
+    const a = edgeParticles[i];
+    for (let j = i + step; j < edgeParticles.length; j += step) {
+      const b = edgeParticles[j];
       const dist = Math.hypot(a.x - b.x, a.y - b.y);
-      if (dist < 30) {
+      if (dist < 18) {
         ctx.beginPath();
-        ctx.strokeStyle = `rgba(155,134,184,${0.09 * (1 - dist / 30)})`;
-        ctx.lineWidth = 0.7;
+        ctx.strokeStyle = `rgba(63,52,84,${0.11 * (1 - dist / 18)})`;
+        ctx.lineWidth = 0.55;
         ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
       }
     }
@@ -359,10 +384,9 @@ function animate() {
   ctx.clearRect(0, 0, W, H);
   drawBackground();
   drawRipples();
-  drawReadableText();
+  drawGhostText();
   updateParticles();
   drawLinks();
-  drawFinalTextClarity();
   requestAnimationFrame(animate);
 }
 
@@ -385,7 +409,6 @@ function showToast(message) {
   setTimeout(() => toast.remove(), 1700);
 }
 
-// Prevent mobile page scrolling while interacting with the canvas.
 ['touchstart', 'touchmove', 'touchend', 'gesturestart'].forEach(type => {
   window.addEventListener(type, e => e.preventDefault(), { passive: false });
 });
