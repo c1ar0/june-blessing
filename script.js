@@ -100,17 +100,17 @@ function wrapText(ctx2, text, maxWidth) {
 }
 
 function textLayout(text, ctx2) {
-  const maxWidth = W * (W < 560 ? 0.88 : 0.78);
-  const maxHeight = H * (W < 560 ? 0.42 : 0.48);
-  const minSize = W < 560 ? 24 : 34;
-  let size = W < 560 ? 40 : 66;
+  const maxWidth = W * (W < 560 ? 0.90 : 0.80);
+  const maxHeight = H * (W < 560 ? 0.48 : 0.52);
+  const minSize = W < 560 ? 25 : 36;
+  let size = W < 560 ? 44 : 72;
 
-  if (text.length <= 8) size = W < 560 ? 64 : 104;
-  else if (text.length <= 16) size = W < 560 ? 50 : 82;
-  else if (text.length <= 24) size = W < 560 ? 42 : 70;
-  else if (text.length > 34) size = W < 560 ? 32 : 52;
+  if (text.length <= 8) size = W < 560 ? 76 : 118;
+  else if (text.length <= 16) size = W < 560 ? 58 : 90;
+  else if (text.length <= 24) size = W < 560 ? 48 : 76;
+  else if (text.length > 34) size = W < 560 ? 34 : 56;
 
-  size = clamp(size, minSize, Math.min(W < 560 ? 70 : 112, W / 3.35));
+  size = clamp(size, minSize, Math.min(W < 560 ? 82 : 124, W / 3.05));
 
   let lines = [];
   let lineHeight = size * 1.24;
@@ -145,7 +145,7 @@ function getTextTargets(text) {
   lines.forEach((line, i) => octx.fillText(line, W / 2, centerY - totalH / 2 + i * lineHeight));
 
   const data = octx.getImageData(0, 0, off.width, off.height).data;
-  const gap = W < 560 ? 4 : 5;
+  const gap = W < 560 ? 3 : 4;
   const targets = [];
   for (let y = 0; y < off.height; y += gap * DPR) {
     for (let x = 0; x < off.width; x += gap * DPR) {
@@ -159,7 +159,7 @@ function buildText(text, scatter = true) {
   const targets = getTextTargets(text);
   const old = particles;
   const next = [];
-  const maxParticles = W < 560 ? 4300 : 6200;
+  const maxParticles = W < 560 ? 6500 : 9000;
   const step = Math.max(1, Math.ceil(targets.length / maxParticles));
   for (let k = 0, i = 0; i < targets.length; i += step, k++) {
     const t = targets[i];
@@ -175,7 +175,7 @@ function buildText(text, scatter = true) {
       oy: t.y,
       vx: scatter ? Math.cos(angle) * rand(4, 12) : rand(-0.5, 0.5),
       vy: scatter ? Math.sin(angle) * rand(4, 12) : rand(-0.5, 0.5),
-      r: rand(W < 560 ? 0.95 : 1.05, W < 560 ? 1.85 : 2.15),
+      r: rand(W < 560 ? 0.72 : 0.82, W < 560 ? 1.38 : 1.62),
       color: palette[Math.floor(Math.random() * palette.length)],
       a: rand(0.62, 0.96),
       phase: Math.random() * Math.PI * 2
@@ -260,13 +260,34 @@ function drawReadableText() {
     const y = centerY - totalH / 2 + i * lineHeight;
     // A light but crisp skeleton under the particles keeps Chinese strokes readable
     // without losing the particle-text effect.
-    ctx.lineWidth = Math.max(2.4, size * 0.052);
-    ctx.strokeStyle = 'rgba(255,255,255,0.82)';
+    ctx.lineWidth = Math.max(3.2, size * 0.064);
+    ctx.strokeStyle = 'rgba(255,255,255,0.90)';
     ctx.strokeText(line, W / 2, y);
-    ctx.lineWidth = Math.max(1.2, size * 0.022);
-    ctx.strokeStyle = 'rgba(70,58,92,0.48)';
+    ctx.lineWidth = Math.max(1.8, size * 0.030);
+    ctx.strokeStyle = 'rgba(56,46,76,0.66)';
     ctx.strokeText(line, W / 2, y);
-    ctx.fillStyle = 'rgba(70,58,92,0.20)';
+    ctx.fillStyle = 'rgba(56,46,76,0.36)';
+    ctx.fillText(line, W / 2, y);
+  });
+  ctx.restore();
+}
+
+function drawFinalTextClarity() {
+  if (!currentTextRender || !currentTextRender.lines) return;
+  const { lines, size, lineHeight, centerY } = currentTextRender;
+  const totalH = (lines.length - 1) * lineHeight;
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = `900 ${size}px "PingFang SC", "Microsoft YaHei", system-ui, sans-serif`;
+  ctx.lineJoin = 'round';
+  ctx.shadowBlur = 0;
+  lines.forEach((line, i) => {
+    const y = centerY - totalH / 2 + i * lineHeight;
+    ctx.lineWidth = Math.max(0.9, size * 0.012);
+    ctx.strokeStyle = 'rgba(56,46,76,0.38)';
+    ctx.strokeText(line, W / 2, y);
+    ctx.fillStyle = 'rgba(56,46,76,0.18)';
     ctx.fillText(line, W / 2, y);
   });
   ctx.restore();
@@ -309,8 +330,8 @@ function updateParticles() {
     ctx.globalAlpha = p.a;
     ctx.fillStyle = p.color;
     ctx.shadowColor = p.color;
-    ctx.shadowBlur = 3 + speedGlow * 8;
-    ctx.arc(p.x, p.y, p.r + speedGlow * 0.35, 0, Math.PI * 2);
+    ctx.shadowBlur = 1.5 + speedGlow * 4.5;
+    ctx.arc(p.x, p.y, p.r + speedGlow * 0.22, 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.globalAlpha = 1;
@@ -341,6 +362,7 @@ function animate() {
   drawReadableText();
   updateParticles();
   drawLinks();
+  drawFinalTextClarity();
   requestAnimationFrame(animate);
 }
 
