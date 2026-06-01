@@ -1,12 +1,12 @@
 :root {
   color-scheme: light;
   --lavender-50: #fbf9ff;
-  --lavender-100: #f4f0fb;
-  --lavender-200: #e9e1f3;
-  --lavender-300: #d8cce8;
-  --lavender-400: #bca8d2;
-  --lavender-500: #9b86b8;
-  --lavender-700: #5a4a70;
+  --lavender-100: #ebe4f4;
+  --lavender-200: #d9cce8;
+  --lavender-300: #c5b2db;
+  --lavender-400: #9f86bd;
+  --lavender-500: #765b9b;
+  --lavender-700: #433352;
   --ink: #2f2940;
   --muted: rgba(47, 41, 64, 0.62);
 }
@@ -28,10 +28,10 @@ body {
   font-family: "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
   color: var(--ink);
   background:
-    radial-gradient(circle at 14% 18%, rgba(216, 204, 232, .52), transparent 28%),
-    radial-gradient(circle at 84% 20%, rgba(188, 168, 210, .34), transparent 30%),
-    radial-gradient(circle at 50% 86%, rgba(233, 225, 243, .78), transparent 36%),
-    linear-gradient(135deg, #fffefe 0%, var(--lavender-100) 44%, #ebe4f3 100%);
+    radial-gradient(circle at 14% 18%, rgba(197, 178, 219, .50), transparent 28%),
+    radial-gradient(circle at 84% 20%, rgba(159, 134, 189, .38), transparent 30%),
+    radial-gradient(circle at 50% 86%, rgba(217, 204, 232, .70), transparent 36%),
+    linear-gradient(135deg, #f8f4fb 0%, #e6ddef 46%, #d7c7e6 100%);
   -webkit-user-select: none;
   user-select: none;
 }
@@ -76,8 +76,8 @@ body::before {
   padding: 14px 16px 13px;
   border: 1px solid rgba(155, 134, 184, .22);
   border-radius: 22px;
-  background: rgba(255, 255, 255, .42);
-  box-shadow: 0 18px 52px rgba(90, 74, 112, .12), inset 0 1px 0 rgba(255,255,255,.82);
+  background: rgba(255, 255, 255, .34);
+  box-shadow: 0 18px 52px rgba(67, 51, 82, .16), inset 0 1px 0 rgba(255,255,255,.72);
   backdrop-filter: blur(18px) saturate(1.08);
   -webkit-backdrop-filter: blur(18px) saturate(1.08);
   text-align: center;

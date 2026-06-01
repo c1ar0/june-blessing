@@ -41,9 +41,9 @@ const captions = [
   '这是纯粒子描边版，没有普通实体描边'
 ];
 
-const edgePalette = ['#3F3454', '#514368', '#6A5A84', '#806D9D'];
-const fillPalette = ['#A691C3', '#BBA9D2', '#D9CEE8', '#EDE7F6', '#F4F0FB'];
-const orbPalette = ['rgba(155,134,184,', 'rgba(216,205,234,', 'rgba(244,240,251,'];
+const edgePalette = ['#2E243C', '#433352', '#5B4673', '#765B9B'];
+const fillPalette = ['#6B4F8A', '#8061A3', '#9F86BD', '#C5B2DB', '#E6DDEF'];
+const orbPalette = ['rgba(118,91,155,', 'rgba(159,134,189,', 'rgba(217,204,232,'];
 
 let W = 0, H = 0, DPR = 1;
 let particles = [];
@@ -254,9 +254,9 @@ function nextPhrase() {
 
 function drawBackground() {
   const g = ctx.createRadialGradient(W * 0.5, H * 0.56, 20, W * 0.5, H * 0.56, Math.max(W, H) * 0.76);
-  g.addColorStop(0, 'rgba(255,255,255,.62)');
-  g.addColorStop(0.38, 'rgba(216,205,234,.22)');
-  g.addColorStop(1, 'rgba(216,205,234,0)');
+  g.addColorStop(0, 'rgba(248,244,251,.48)');
+  g.addColorStop(0.38, 'rgba(159,134,189,.20)');
+  g.addColorStop(1, 'rgba(159,134,189,0)');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, W, H);
 
@@ -286,7 +286,7 @@ function drawBackground() {
     if (d.y < -10) d.y = H + 10; if (d.y > H + 10) d.y = -10;
     ctx.beginPath();
     ctx.globalAlpha = d.a * (0.75 + Math.sin(d.pulse) * 0.25);
-    ctx.fillStyle = '#9B86B8';
+    ctx.fillStyle = '#765B9B';
     ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
     ctx.fill();
   }
